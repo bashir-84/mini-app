@@ -1,0 +1,11 @@
+{
+  "name": "class-reasoning-quiz",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "assets": {"directory": "./public", "run_worker_first": ["/api/*"]},
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "class-reasoning-quiz",
+    "database_id": "39d592cd-4551-41fe-a159-513dc3ed3086"
+  }]
+}

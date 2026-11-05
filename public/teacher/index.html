@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>پنل معلم</title>
+<link rel="stylesheet" href="/style.css">
+<script type="module" src="/teacher.js"></script>
+</head>
+<body><main class="wide">
+<header><p class="eyebrow">تمرین گروهی</p><h1>پنل معلم</h1></header>
+<p id="message" role="status">در حال بررسی نشست…</p>
+<form id="login" class="card" hidden>
+<h2>ورود معلم</h2>
+<label>نام کاربری<input dir="ltr" name="login" autocomplete="username" required></label>
+<label>کلید ورود<input dir="ltr" type="password" name="key" autocomplete="current-password" required></label>
+<button>ورود</button>
+</form>
+<section id="dashboard" hidden>
+<div class="toolbar">
+<label>نوبت آزمون <select id="round"></select></label>
+<button id="refresh" type="button" class="secondary">تازه‌سازی</button>
+<button id="logout" type="button" class="secondary">خروج</button>
+</div>
+<div id="report"></div>
+</section>
+</main></body>
+</html>

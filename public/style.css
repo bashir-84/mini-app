@@ -1,0 +1,44 @@
+:root {
+  color-scheme: light;
+  --ink: #152741;
+  --muted: #46566e;
+  --accent: #174f92;
+  --line: #ced9e7;
+  --surface: #fff;
+  background: #edf3fb;
+  color: var(--ink);
+  font: 16px/1.7 Tahoma, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+main { width: min(100% - 2rem, 42rem); margin: 2rem auto 4rem; }
+main.wide { width: min(100% - 2rem, 68rem); }
+header { padding: 1.25rem 1.5rem; background: #152d53; color: white; border-radius: 1rem; }
+h1 { font-size: clamp(1.45rem, 5vw, 2.05rem); margin: .2rem 0; }
+h2 { font-size: 1.12rem; margin-block: 0 .6rem; }
+p { margin-block: .45rem .8rem; }
+.eyebrow { color: #d4e6ff; margin: 0; font-size: .92rem; }
+.card { margin: .85rem 0; padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: .85rem; min-width: 0; }
+fieldset { padding: .65rem 1rem 1rem; }
+legend { padding-inline: .25rem; font-weight: bold; }
+label { display: block; }
+.option { display: flex; gap: .55rem; align-items: center; min-height: 46px; margin-top: .45rem; padding: .35rem .65rem; border: 1px solid var(--line); border-radius: .6rem; cursor: pointer; }
+.option:has(:checked) { background: #eaf2ff; border-color: var(--accent); }
+input[type=radio] { margin: 0; accent-color: var(--accent); }
+input:not([type=radio]), select { max-width: 100%; border: 1px solid var(--line); border-radius: .55rem; padding: .45rem; min-height: 44px; font: inherit; color: inherit; background: white; }
+#login input { display: block; width: 100%; margin-bottom: .75rem; }
+button { min-height: 44px; padding: .45rem .95rem; border: 1px solid transparent; border-radius: .55rem; background: var(--accent); color: white; font: inherit; cursor: pointer; }
+button.secondary { background: white; border-color: var(--line); color: var(--ink); }
+button:disabled { opacity: .6; cursor: wait; }
+:focus-visible { outline: 3px solid #a55700; outline-offset: 3px; }
+.error { color: #922b26; }
+fieldset.error { border-color: #b74e46; color: var(--ink); }
+.good { color: #12623f; }
+.muted { color: var(--muted); }
+.toolbar { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; text-align: start; }
+td, th { padding: .45rem; text-align: start; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.score { font-size: 1.35rem; font-weight: bold; }
+bdi { overflow-wrap: anywhere; }

@@ -1,0 +1,150 @@
+import {api, busy, button, digits, element, get, letters, notice, table} from './common.js';
+
+const telegram = window.Telegram?.WebApp;
+const screen = get('screen');
+const request = (path, data) => api('student/' + path, {
+  method:data === undefined ? 'GET' : 'POST', data,
+  headers:{'X-Telegram-Init-Data':telegram.initData}
+});
+
+function scorePanel() {
+  const panel = element('section',undefined,'card');
+  const content = element('div');
+  panel.append(element('h2','جدول امتیاز کلاس'), button('دریافت یا تازه‌سازی جدول', async () => {
+    const {rows} = await request('scores');
+    content.replaceChildren(rows.length
+      ? table(['رتبه','نام نمایشی','پاسخ درست'], rows.map(row => [
+        digits(row.rank),element('bdi',row.name),digits(row.score)
+      ]))
+      : element('p','هنوز نتیجه‌ای ثبت نشده است.'));
+  }, 'secondary'), content);
+  return panel;
+}
+
+function render(state) {
+  get('title').textContent = state.title;
+  get('context').textContent = state.classTitle;
+  screen.replaceChildren();
+  const identity = element('p',undefined,'muted');
+  identity.append('نام نمایشی در جدول کلاس: ',element('bdi',state.displayName));
+  screen.append(identity);
+  if (state.access !== 'active') {
+    const text = state.access === 'pending' ? 'درخواست ثبت شد. پس از تأیید معلم، وضعیت را تازه کن.'
+      : state.closed ? 'این نوبت آزمون به پایان رسیده است.'
+      : 'برای شرکت در آزمون، درخواست عضویت بفرست.';
+    screen.append(element('p',text,'card'));
+    if (state.access === 'new' && !state.closed) {
+      screen.append(button('درخواست عضویت', async () => {
+        await request('join',{});
+        await load();
+      }));
+    }
+    screen.append(button('تازه‌سازی وضعیت',load,'secondary'));
+    return;
+  }
+  if (state.result) {
+    const result = state.result;
+    const panel = element('section',undefined,'card');
+    panel.append(element('h2',digits(result.score) + ' پاسخ درست از ' + digits(result.total),'score'));
+    const list = element('ul');
+    for (const answer of result.answers) {
+      const item = element('li','سؤال ' + digits(answer.number) + ' — ' +
+        (answer.ok ? 'درست' : 'نادرست') + ' · انتخاب تو: ' +
+        letters[answer.option] + ') ' + answer.label,answer.ok ? 'good' : 'error');
+      list.append(item);
+    }
+    panel.append(list);
+    screen.append(panel);
+  } else if (!state.closed) {
+    renderForm(state);
+  } else {
+    screen.append(element('p','آزمون پایان یافته است.','card'));
+  }
+  if (state.closed) screen.append(scorePanel());
+  else if (state.result) {
+    screen.append(element('p','جدول امتیاز پس از پایان آزمون باز می‌شود.','muted'),
+      button('تازه‌سازی وضعیت',load,'secondary'));
+  }
+}
+
+function renderForm(state) {
+  screen.append(element('p',state.intro));
+  const form = element('form');
+  const progress = element('p',undefined,'muted');
+  progress.setAttribute('role','status');
+  const fields = [];
+  for (const question of state.questions) {
+    const field = element('fieldset',undefined,'card');
+    field.append(element('legend','سؤال ' + digits(question.number) + ' — ' + question.prompt));
+    question.options.forEach((option,index) => {
+      const label = element('label',undefined,'option');
+      const radio = element('input');
+      radio.type = 'radio';
+      radio.name = 'question-' + question.number;
+      radio.value = index;
+      label.append(radio,element('span',letters[index] + ') ' + option));
+      field.append(label);
+    });
+    fields.push({field, number:question.number});
+    form.append(field);
+  }
+  const selected = () => fields.map(({field}) => field.querySelector(':checked'));
+  function update() {
+    const count = selected().filter(Boolean).length;
+    progress.textContent = digits(count) + ' از ' + digits(fields.length) + ' پاسخ تکمیل شده';
+    return count;
+  }
+  form.addEventListener('change',event => {
+    event.target.closest('fieldset')?.classList.remove('error');
+    if (update() === fields.length) notice();
+  });
+  const submit = element('button','ثبت نهایی');
+  form.append(progress,submit);
+  form.addEventListener('submit',event => {
+    event.preventDefault();
+    if (submit.disabled) return;
+    const choices = selected();
+    const missing = fields.filter(({field},index) => {
+      field.classList.toggle('error',!choices[index]);
+      return !choices[index];
+    });
+    if (missing.length) {
+      notice('بی‌پاسخ: سؤال ' + missing.map(q => digits(q.number)).join('، '),true);
+      missing[0].field.querySelector('input').focus();
+      return;
+    }
+    const answers = choices.map(input => Number(input.value));
+    void busy(submit,async () => {
+      fields.forEach(({field}) => { field.disabled = true; });
+      submit.textContent = 'در حال ثبت…';
+      try {
+        const {result} = await request('submit',{answers});
+        render({...state,result});
+      } catch (error) {
+        if (error.status === 409 || error.status === 403) await load();
+        else throw error;
+      } finally {
+        fields.forEach(({field}) => { field.disabled = false; });
+        submit.textContent = 'ثبت نهایی';
+      }
+    });
+  });
+  update();
+  screen.append(form);
+}
+
+async function load() {
+  const state = await request('state');
+  notice();
+  render(state);
+}
+
+if (!telegram?.initData) notice('آزمون را از لینک کلاس در تلگرام باز کن.',true);
+else {
+  telegram.ready();
+  telegram.expand();
+  load().catch(error => {
+    notice(error.message,true);
+    screen.append(button('تلاش دوباره',load,'secondary'));
+  });
+}
