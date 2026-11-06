@@ -76,8 +76,13 @@ async function body(request) {
 }
 
 async function student(action, request, env, db) {
-  const {id, telegramId, displayName, roundId} = await validateTelegram(
+  const {id, telegramId, displayName, roundId: startRoundId} = await validateTelegram(
     request.headers.get('X-Telegram-Init-Data'), env.TELEGRAM_BOT_TOKEN);
+  let roundId = startRoundId;
+  if (!roundId) {
+    const available = await db.prepare('SELECT id FROM rounds ORDER BY id LIMIT 2').all();
+    if (available.results.length === 1) roundId = available.results[0].id;
+  }
   if (!/^[a-z0-9-]{1,64}$/.test(roundId ?? '')) fail(404, fa.missing);
   const round = await db.prepare(`SELECT r.*, c.title AS class_title, q.title, q.intro
     FROM rounds r JOIN classes c ON c.id=r.class_id JOIN quizzes q ON q.id=r.quiz_id
