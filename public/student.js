@@ -50,6 +50,11 @@ function render(state) {
     }
     panel.append(list);
     screen.append(panel);
+    const botLink = element('a','فعال‌کردن پیام نتیجه در چت بات');
+    botLink.href = 'https://t.me/ConnectionPlansBot?start';
+    botLink.target = '_blank';
+    botLink.rel = 'noopener noreferrer';
+    screen.append(botLink);
   } else if (!state.closed) {
     renderForm(state);
   } else {

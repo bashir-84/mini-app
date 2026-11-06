@@ -56,6 +56,22 @@ function render(round,data) {
     await action('publish');
     await refresh();
   }));
+  const bot = element('section',undefined,'card');
+  const botStatus = element('p','برای دریافت گزارش در تلگرام، ابتدا اتصال بات را فعال کن و سپس حساب معلم را وصل کن.');
+  bot.append(element('h2','گزارش در چت بات'),botStatus,
+    button('فعال‌سازی مسیر پیام',async () => {
+      await request('bot-setup',{method:'POST'});
+      botStatus.textContent = 'مسیر پیام فعال شد. حالا کد اتصال بساز.';
+    },'secondary'),
+    button('ساخت کد اتصال معلم',async () => {
+      const {code} = await request('bot-link',{method:'POST'});
+      botStatus.replaceChildren('این لینک را با حساب انسانی معلم در تلگرام باز کن. کد تا ۱۰ دقیقه معتبر است.');
+      const link = element('a','وصل‌کردن حساب معلم');
+      link.href = 'https://t.me/ConnectionPlansBot?start=' + code;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      botStatus.append(element('br'),link);
+    },'secondary'));
   const members = element('section',undefined,'card');
   members.append(element('h2','عضویت کلاس'));
   const roster = data.members.map(member => [
@@ -93,7 +109,7 @@ function render(round,data) {
   attempts.append(rows.length ? table(['نام','امتیاز','زمان تهران',
     ...data.questions.map(q => 'سؤال ' + digits(q.number))],rows)
     : element('p','هنوز دانش‌آموز تأییدشده‌ای وجود ندارد.'));
-  report.replaceChildren(state,members,summary,attempts);
+  report.replaceChildren(state,bot,members,summary,attempts);
 }
 login.addEventListener('submit',event => {
   event.preventDefault();

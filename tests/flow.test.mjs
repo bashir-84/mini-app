@@ -7,7 +7,7 @@ import worker from '../src/worker.mjs';
 
 test('Telegram identity, class membership, stable results and teacher publication', async () => {
   const sql = new DatabaseSync(':memory:');
-  for (const filename of ['0001_schema.sql','0002_seed.sql']) {
+  for (const filename of ['0001_schema.sql','0002_seed.sql','0003_messages.sql']) {
     sql.exec(readFileSync(new URL('../migrations/' + filename, import.meta.url),'utf8'));
   }
   sql.exec(readFileSync(new URL('./fixture.sql', import.meta.url),'utf8'));
