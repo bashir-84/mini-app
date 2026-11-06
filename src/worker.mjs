@@ -362,6 +362,9 @@ async function teacher(action, roundId, request, db, env) {
 }
 
 export default {
+  async scheduled(controller, env) {
+    await sendPending(env.DB.withSession('first-primary'),env.TELEGRAM_BOT_TOKEN);
+  },
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);

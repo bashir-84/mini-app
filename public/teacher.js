@@ -8,6 +8,7 @@ const request = (action,{round,data,method = 'GET'} = {}) => api('teacher/' + ac
   (round ? '?round=' + encodeURIComponent(round) : ''),{method,data});
 const date = new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Tehran'});
 let loadVersion = 0;
+let teacherConnectCode = null;
 
 function showLogin() {
   loadVersion++;
@@ -58,6 +59,13 @@ function render(round,data) {
   }));
   const bot = element('section',undefined,'card');
   const botStatus = element('p','برای دریافت گزارش در تلگرام، ابتدا اتصال بات را فعال کن و سپس حساب معلم را وصل کن.');
+  if (teacherConnectCode) {
+    const link = element('a','وصل‌کردن حساب معلم');
+    link.href = 'https://t.me/ConnectionPlansBot?start=' + teacherConnectCode;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    botStatus.replaceChildren('این لینک را با حساب انسانی معلم در تلگرام باز کن. کد تا ۱۰ دقیقه معتبر است.',element('br'),link);
+  }
   bot.append(element('h2','گزارش در چت بات'),botStatus,
     button('فعال‌سازی مسیر پیام',async () => {
       await request('bot-setup',{method:'POST'});
@@ -65,6 +73,7 @@ function render(round,data) {
     },'secondary'),
     button('ساخت کد اتصال معلم',async () => {
       const {code} = await request('bot-link',{method:'POST'});
+      teacherConnectCode = code;
       botStatus.replaceChildren('این لینک را با حساب انسانی معلم در تلگرام باز کن. کد تا ۱۰ دقیقه معتبر است.');
       const link = element('a','وصل‌کردن حساب معلم');
       link.href = 'https://t.me/ConnectionPlansBot?start=' + code;

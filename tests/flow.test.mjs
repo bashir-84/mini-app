@@ -87,6 +87,7 @@ test('Telegram identity, class membership, stable results and teacher publicatio
   assert.ok(cookie.startsWith('__Host-teacher='));
   assert.equal((await call('teacher/report?round=other-round',{cookie})).status,403);
   assert.equal((await call('teacher/publish'+round,{cookie,method:'POST',origin:'https://outside.test'})).status,403);
+  sql.exec("INSERT INTO bot_chats VALUES ('teacher:test','123456789')");
   const initial = (await state(sara)).body;
   assert.equal(initial.questions.length,3);
   assert.deepEqual(Object.keys(initial.questions[0]),['number','prompt','options']);
@@ -95,6 +96,7 @@ test('Telegram identity, class membership, stable results and teacher publicatio
   const [first, retry] = await Promise.all([submit(sara,[1,2,3],'سارا دلخواه'),submit(sara,[1,2,3],'سارا دلخواه')]);
   const result = first.body.result;
   assert.equal(result.score,2);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM message_outbox WHERE recipient='teacher' AND user_id='tg:100'").get().n,1);
   assert.deepEqual(result.answers.map(a => [a.option,a.ok]),[[1,true],[2,false],[3,true]]);
   assert.deepEqual(Object.keys(result.answers[0]),['number','option','label','ok']);
   assert.deepEqual(retry.body.result,result);
