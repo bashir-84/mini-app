@@ -88,25 +88,21 @@ async function student(action, request, env, db) {
     FROM rounds r JOIN classes c ON c.id=r.class_id JOIN quizzes q ON q.id=r.quiz_id
     WHERE r.id=?`).bind(roundId).first();
   if (!round) fail(404, fa.missing);
-  const member = await db.prepare(`SELECT role,status FROM memberships
-    WHERE class_id=? AND user_id=?`).bind(round.class_id, id).first();
-  if (action === 'join') {
-    if (round.closed_at) fail(409, fa.closed);
+  if (action === 'state') {
     await db.batch([
       db.prepare(`INSERT INTO users (id,telegram_id,display_name) VALUES (?,?,?)
-        ON CONFLICT(id) DO UPDATE SET display_name=excluded.display_name`).bind(id, telegramId, displayName),
-      db.prepare(`INSERT INTO memberships
-        SELECT class_id, ?, 'student', 'pending' FROM rounds WHERE id=? AND closed_at IS NULL
-        ON CONFLICT(class_id,user_id) DO NOTHING`).bind(id, roundId)
+        ON CONFLICT(id) DO NOTHING`).bind(id, telegramId, displayName),
+      db.prepare(`INSERT INTO memberships (class_id,user_id,role,status)
+        VALUES (?,?,'student','active') ON CONFLICT(class_id,user_id) DO UPDATE
+        SET status='active' WHERE memberships.role='student'`).bind(round.class_id,id)
     ]);
-    return json({ok: true});
   }
+  const member = await db.prepare(`SELECT role,status FROM memberships
+    WHERE class_id=? AND user_id=?`).bind(round.class_id, id).first();
   const active = member?.role === 'student' && member.status === 'active';
-  if (!active) {
-    if (action !== 'state') fail(403, fa.denied);
-    return json({access: member?.status === 'pending' ? 'pending' : 'new',
-      closed: !!round.closed_at, title: round.title, classTitle: round.class_title, displayName});
-  }
+  if (!active) fail(403, fa.denied);
+  const savedUser = await db.prepare('SELECT display_name FROM users WHERE id=?').bind(id).first();
+  const chosenName = savedUser.display_name;
   const attemptQuery = () => db.prepare(`SELECT display_name,score,answers FROM attempts
     WHERE round_id=? AND user_id=?`).bind(roundId, id).first();
   const questionRows = async () => (await db.prepare(`SELECT number,prompt,options FROM questions
@@ -121,7 +117,6 @@ async function student(action, request, env, db) {
     })};
   };
   if (action === 'scores') {
-    if (!round.closed_at) fail(403, 'جدول پس از پایان آزمون باز می‌شود.');
     const {results} = await db.prepare(`SELECT RANK() OVER (ORDER BY a.score DESC) AS rank,
       a.display_name AS name, a.score FROM attempts a JOIN memberships m
         ON m.user_id=a.user_id AND m.class_id=? AND m.role='student' AND m.status='active'
@@ -132,7 +127,9 @@ async function student(action, request, env, db) {
   if (action === 'submit') {
     if (attempt) return json({result: personal(attempt, await questionRows())});
     if (round.closed_at) fail(409, fa.closed);
-    const {answers} = await body(request);
+    const {answers, name} = await body(request);
+    const cleanName = typeof name === 'string' ? name.trim().replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/gu, '') : '';
+    if (!cleanName || Array.from(cleanName).length > 100) fail(400, 'نام نمایشی را وارد کن.');
     const questions = await questionRows();
     if (!Array.isArray(answers) || !questions.length || answers.length !== questions.length ||
         !answers.every(option => Number.isInteger(option) && option >= 0 && option < 4)) fail(400, fa.invalid);
@@ -150,14 +147,14 @@ async function student(action, request, env, db) {
     FROM rounds r JOIN memberships m ON m.class_id=r.class_id AND m.user_id=?
     WHERE r.id=? AND r.closed_at IS NULL AND m.role='student' AND m.status='active'
     ON CONFLICT(round_id,user_id) DO NOTHING`)
-      .bind(round.quiz_id, JSON.stringify(answers), id, displayName, id, roundId).run();
+      .bind(round.quiz_id, JSON.stringify(answers), id, cleanName, id, roundId).run();
     const saved = await attemptQuery();
     if (!saved) fail(409, 'ثبت انجام نشد. وضعیت آزمون یا عضویت را دوباره بررسی کن.');
     return json({result: personal(saved, questions)});
   }
   const questions = attempt || !round.closed_at ? await questionRows() : [];
   return json({access: 'active', closed: !!round.closed_at, title: round.title,
-    classTitle: round.class_title, intro: round.intro, displayName: attempt?.display_name ?? displayName,
+    classTitle: round.class_title, intro: round.intro, displayName: attempt?.display_name ?? chosenName,
     questions: attempt || round.closed_at ? [] : questions,
     result: attempt ? personal(attempt, questions) : null});
 }

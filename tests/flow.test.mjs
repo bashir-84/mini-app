@@ -73,35 +73,26 @@ test('Telegram identity, class membership, stable results and teacher publicatio
   const outsider = telegram(300,'مهمان');
   const state = auth => call('student/state',{auth});
   const scores = auth => call('student/scores',{auth});
-  const submit = (auth,answers) => call('student/submit',{auth,method:'POST',data:{answers}});
+  const submit = (auth,answers,name='نام آزمون') => call('student/submit',{auth,method:'POST',data:{answers,name}});
   const round = '?round=reasoning-01';
   assert.equal((await state(telegram(100,'سارا',3601))).status,401);
   assert.equal((await state(sara.replace('reasoning-01','other-round'))).status,401);
-  assert.equal((await state(outsider)).body.access,'new');
-  assert.equal((await state(outsider)).body.questions,undefined);
-  assert.equal((await submit(outsider,[1,0,3])).status,403);
+  assert.equal((await state(outsider)).body.access,'active');
+  assert.equal((await state(outsider)).body.questions.length,3);
   assert.equal((await call('teacher/report'+round,{auth:outsider})).status,401);
   assert.equal((await call('teacher/login',{method:'POST',data:{login:'teacher',key:'b'.repeat(64)}})).status,401);
-
-  for (const auth of [sara,arash,outsider]) {
-    assert.equal((await call('student/join',{auth,method:'POST'})).status,200);
-    assert.equal((await state(auth)).body.access,'pending');
-  }
 
   const {cookie,status} = await call('teacher/login',{method:'POST',data:{login:'teacher',key:teacherKey}});
   assert.equal(status,200);
   assert.ok(cookie.startsWith('__Host-teacher='));
   assert.equal((await call('teacher/report?round=other-round',{cookie})).status,403);
   assert.equal((await call('teacher/publish'+round,{cookie,method:'POST',origin:'https://outside.test'})).status,403);
-  for (const id of [100,200]) {
-    assert.equal((await call('teacher/approve'+round,{cookie,method:'POST',data:{userId:'tg:'+id}})).status,200);
-  }
   const initial = (await state(sara)).body;
   assert.equal(initial.questions.length,3);
   assert.deepEqual(Object.keys(initial.questions[0]),['number','prompt','options']);
-  assert.equal((await scores(sara)).status,403);
+  assert.deepEqual((await scores(sara)).body.rows,[]);
   assert.equal((await submit(sara,[1,2])).status,400);
-  const [first, retry] = await Promise.all([submit(sara,[1,2,3]),submit(sara,[1,2,3])]);
+  const [first, retry] = await Promise.all([submit(sara,[1,2,3],'سارا دلخواه'),submit(sara,[1,2,3],'سارا دلخواه')]);
   const result = first.body.result;
   assert.equal(result.score,2);
   assert.deepEqual(result.answers.map(a => [a.option,a.ok]),[[1,true],[2,false],[3,true]]);
@@ -109,7 +100,8 @@ test('Telegram identity, class membership, stable results and teacher publicatio
   assert.deepEqual(retry.body.result,result);
   assert.deepEqual((await submit(sara,[1,0,3])).body.result,result);
   assert.deepEqual((await state(telegram(100,'نام تازه'))).body.result,result);
-  assert.equal((await state(telegram(100,'نام تازه'))).body.displayName,'سارا');
+  assert.equal((await state(telegram(100,'نام تازه'))).body.displayName,'سارا دلخواه');
+  await state(arash);
   assert.equal((await submit(arash,[1,0,3])).body.result.score,3);
 
   const report = (await call('teacher/report'+round,{cookie})).body;
@@ -119,18 +111,17 @@ test('Telegram identity, class membership, stable results and teacher publicatio
   assert.match(report.attempts[0].submitted_at,/Z$/);
   assert.equal((await call('teacher/publish'+round,{cookie,method:'POST'})).status,200);
   assert.equal((await call('teacher/publish'+round,{cookie,method:'POST'})).status,200);
-  assert.equal((await scores(outsider)).status,403);
+  assert.equal((await scores(outsider)).status,200);
   assert.deepEqual((await scores(sara)).body.rows,[
-    {rank:1,name:'آرش',score:3},{rank:2,name:'سارا',score:2}
+    {rank:1,name:'نام آزمون',score:3},{rank:2,name:'سارا دلخواه',score:2}
   ]);
   assert.deepEqual((await submit(sara,[0,0,0])).body.result,result);
-  assert.equal((await call('teacher/approve'+round,{cookie,method:'POST',data:{userId:'tg:300'}})).status,200);
   assert.equal((await submit(outsider,[1,0,3])).status,409);
   assert.equal(sql.prepare('SELECT COUNT(*) AS count FROM attempts').get().count,2);
 
   const query = readFileSync(new URL('../report.sql', import.meta.url),'utf8');
   assert.deepEqual(sql.prepare(query).all().map(row => [row.display_name,row.score,row.q2]), [
-    ['آرش',3,'درست'],['سارا',2,'نادرست']
+    ['نام آزمون',3,'درست'],['سارا دلخواه',2,'نادرست']
   ]);
 
   sql.exec('UPDATE attempts SET score=2');

@@ -20,8 +20,8 @@ function showLogin() {
 async function refresh() {
   const round = selector.value;
   const version = ++loadVersion;
-  report.replaceChildren();
   if (!round) {
+    report.replaceChildren();
     report.append(element('p','نوبت آزمونی برای این حساب وجود ندارد.'));
     return;
   }
@@ -117,3 +117,9 @@ load().then(() => notice()).catch(error => {
   showLogin();
   notice(error.status === 401 ? '' : error.message,error.status !== 401);
 });
+
+setInterval(() => {
+  if (!dashboard.hidden && document.visibilityState === 'visible') {
+    void refresh().catch(() => {});
+  }
+},10000);

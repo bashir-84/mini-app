@@ -7,41 +7,36 @@ const request = (path, data) => api('student/' + path, {
   headers:{'X-Telegram-Init-Data':telegram.initData}
 });
 
+let scoreTimer;
+
 function scorePanel() {
   const panel = element('section',undefined,'card');
   const content = element('div');
-  panel.append(element('h2','جدول امتیاز کلاس'), button('دریافت یا تازه‌سازی جدول', async () => {
+  async function refresh() {
     const {rows} = await request('scores');
+    if (!panel.isConnected) return;
     content.replaceChildren(rows.length
       ? table(['رتبه','نام نمایشی','پاسخ درست'], rows.map(row => [
         digits(row.rank),element('bdi',row.name),digits(row.score)
       ]))
       : element('p','هنوز نتیجه‌ای ثبت نشده است.'));
-  }, 'secondary'), content);
+  }
+  panel.append(element('h2','جدول امتیاز کلاس'), button('تازه‌سازی جدول',refresh,'secondary'), content);
+  void refresh().catch(error => notice(error.message,true));
+  scoreTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && panel.isConnected) void refresh().catch(() => {});
+  },10000);
   return panel;
 }
 
 function render(state) {
   get('title').textContent = state.title;
   get('context').textContent = state.classTitle;
+  clearInterval(scoreTimer);
   screen.replaceChildren();
   const identity = element('p',undefined,'muted');
   identity.append('نام نمایشی در جدول کلاس: ',element('bdi',state.displayName));
   screen.append(identity);
-  if (state.access !== 'active') {
-    const text = state.access === 'pending' ? 'درخواست ثبت شد. پس از تأیید معلم، وضعیت را تازه کن.'
-      : state.closed ? 'این نوبت آزمون به پایان رسیده است.'
-      : 'برای شرکت در آزمون، درخواست عضویت بفرست.';
-    screen.append(element('p',text,'card'));
-    if (state.access === 'new' && !state.closed) {
-      screen.append(button('درخواست عضویت', async () => {
-        await request('join',{});
-        await load();
-      }));
-    }
-    screen.append(button('تازه‌سازی وضعیت',load,'secondary'));
-    return;
-  }
   if (state.result) {
     const result = state.result;
     const panel = element('section',undefined,'card');
@@ -60,16 +55,20 @@ function render(state) {
   } else {
     screen.append(element('p','آزمون پایان یافته است.','card'));
   }
-  if (state.closed) screen.append(scorePanel());
-  else if (state.result) {
-    screen.append(element('p','جدول امتیاز پس از پایان آزمون باز می‌شود.','muted'),
-      button('تازه‌سازی وضعیت',load,'secondary'));
-  }
+  screen.append(scorePanel());
 }
 
 function renderForm(state) {
   screen.append(element('p',state.intro));
   const form = element('form');
+  const nameLabel = element('label','نام نمایشی در جدول امتیاز');
+  const nameInput = element('input');
+  nameInput.type = 'text';
+  nameInput.maxLength = 100;
+  nameInput.required = true;
+  nameInput.value = state.displayName;
+  nameLabel.append(nameInput);
+  form.append(nameLabel);
   const progress = element('p',undefined,'muted');
   progress.setAttribute('role','status');
   const fields = [];
@@ -113,18 +112,22 @@ function renderForm(state) {
       missing[0].field.querySelector('input').focus();
       return;
     }
+    const name = nameInput.value.trim();
+    if (!name) { notice('نام نمایشی را وارد کن.',true); nameInput.focus(); return; }
     const answers = choices.map(input => Number(input.value));
     void busy(submit,async () => {
       fields.forEach(({field}) => { field.disabled = true; });
+      nameInput.disabled = true;
       submit.textContent = 'در حال ثبت…';
       try {
-        const {result} = await request('submit',{answers});
-        render({...state,result});
+        const {result} = await request('submit',{answers,name});
+        render({...state,displayName:name,result});
       } catch (error) {
         if (error.status === 409 || error.status === 403) await load();
         else throw error;
       } finally {
         fields.forEach(({field}) => { field.disabled = false; });
+        nameInput.disabled = false;
         submit.textContent = 'ثبت نهایی';
       }
     });
