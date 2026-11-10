@@ -420,6 +420,12 @@ export default {
       const method = request.method;
       if (method === 'POST' && url.pathname !== '/api/bot/update' && request.headers.get('Origin') !== url.origin) fail(403, fa.denied);
       const db = env.DB.withSession('first-primary');
+      if (url.pathname === '/api/inline-status' && method === 'GET') {
+        const w = await botApi(env.TELEGRAM_BOT_TOKEN,'getWebhookInfo',{});
+        return json({webhookConfigured:!!w.url,
+          updateTypes:w.allowed_updates || [],pending:w.pending_update_count ?? 0,
+          latestError:w.last_error_message || null});
+      }
       if (url.pathname === '/api/bot/update' && method === 'POST') return await botUpdate(request,env,db,ctx);
       const studentRoute = /^\/api\/student\/(state|scores|join|submit)$/.exec(url.pathname);
       const teacherRoute = /^\/api\/teacher\/(login|logout|rounds|report|approve|publish|bot-link|bot-setup)$/.exec(url.pathname);
