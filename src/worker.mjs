@@ -169,6 +169,24 @@ async function botUpdate(request, env, db, ctx) {
     }
     return json({ok:true});
   }
+  if (message.text.trim() === '/widget') {
+    // Isolated HTML Bubble demo. No quiz or database state is changed.
+    const html = `<html><head><style>
+body{margin:12px;font-family:sans-serif;color:var(--tg-theme-text-color)}
+h3{margin:0 0 7px;font-size:17px}
+p{font-size:13px;color:var(--tg-theme-hint-color);margin:0 0 12px}
+#n{font-size:36px;font-weight:700;text-align:center;margin:10px}
+button{display:block;width:100%;padding:11px;border-radius:10px;border:0;background:var(--tg-theme-button-color);color:var(--tg-theme-button-text-color);font-size:15px}
+</style></head><body>
+<h3>Telegram HTML Bubble</h3><p>Interactive widget test</p>
+<div id="n">0</div><button onclick="increment()">+1 Tap to count</button>
+<script>var count=0;function increment(){document.getElementById('n').textContent=++count}</script>
+</body></html>`;
+    await botApi(env.TELEGRAM_BOT_TOKEN,'sendWidget',{
+      chat_id:chatId,html,height:175,caption:'HTML Bubble آزمایشی — روی دکمه بزن'
+    });
+    return json({ok:true});
+  }
   if (message.text.trim() === '/start') {
     const student = await db.prepare('SELECT id FROM users WHERE id=? AND telegram_id=?')
       .bind(userId,String(message.from.id)).first();
