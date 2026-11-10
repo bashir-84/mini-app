@@ -404,7 +404,7 @@ export default {
       const config = await db.prepare('SELECT webhook_secret FROM bot_config WHERE id=1').first();
       if (config?.webhook_secret) {
         const webhook = await botApi(env.TELEGRAM_BOT_TOKEN,'getWebhookInfo',{});
-        if (webhook.url && /\\/api\\/bot\\/update$/.test(webhook.url) &&
+        if (webhook.url && webhook.url.endsWith('/api/bot/update') &&
             !webhook.allowed_updates?.includes('inline_query')) {
           await botApi(env.TELEGRAM_BOT_TOKEN,'setWebhook',{
             url:webhook.url,secret_token:config.webhook_secret,
