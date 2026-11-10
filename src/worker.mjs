@@ -154,9 +154,9 @@ async function botUpdate(request, env, db, ctx) {
       const vipPrices = {'10':80000,'20':160000,'30':210000,'50':328000};
       if ((category === 'vip' && vipPrices[option]) ||
           (category !== 'vip' && ['1','2'].includes(option))) {
-        detail = (operation === 'buy' ? 'خرید' : 'تمدید') + ' سرویس\\nپلن: ' + names[category] +
-          (category === 'vip' ? '\\nحجم: ' + option + ' گیگ\\nمدت: ۱ ماه\\nمبلغ: ' +
-          vipPrices[option].toLocaleString('fa-IR') + ' تومان' : '\\nمدت: ' + option + ' ماه');
+        detail = (operation === 'buy' ? 'خرید' : 'تمدید') + ' سرویس\nپلن: ' + names[category] +
+          (category === 'vip' ? '\nحجم: ' + option + ' گیگ\nمدت: ۱ ماه\nمبلغ: ' +
+          vipPrices[option].toLocaleString('fa-IR') + ' تومان' : '\nمدت: ' + option + ' ماه');
       }
     }
     const action = /^action:v1:([a-z0-9]+)$/.exec(data)?.[1];
@@ -166,8 +166,8 @@ async function botUpdate(request, env, db, ctx) {
       try {
         await botApi(env.TELEGRAM_BOT_TOKEN,'sendMessage',{
           chat_id:chat.id,
-          text:'✅ درخواست دریافت شد\\n' + detail +
-            '\\n\\nاین پیام فقط تأیید دریافت درخواست است؛ پرداخت یا ارائه سرویس واقعی انجام نشده است.'
+          text:'✅ درخواست دریافت شد\n' + detail +
+            '\n\nاین پیام فقط تأیید دریافت درخواست است؛ پرداخت یا ارائه سرویس واقعی انجام نشده است.'
         });
         result = 'sent';
       } catch (error) {
