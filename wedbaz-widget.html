@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WEDBAZ</title>
+<style>
+body{margin:0;background:#0a1a22;color:#ecf8f9;font:14px/1.5 system-ui,sans-serif}
+main{max-width:470px;margin:auto;padding:10px 10px 12px}
+.hero,.card{background:#14272f;border:1px solid #29434a;border-radius:16px;padding:12px}
+.hero{background:linear-gradient(120deg,#14252e,#205457)}
+small{color:#aec7cb}
+h1,h2,p{margin:0}
+h1{font-size:25px;margin-bottom:4px}
+h2{font-size:18px;margin-bottom:8px}
+.balance{background:#0d2028;border-radius:10px;margin-top:10px;padding:7px 10px}
+nav,.grid,.row{display:grid;gap:6px;grid-template-columns:repeat(2,minmax(0,1fr))}
+nav{grid-template-columns:repeat(4,minmax(0,1fr));margin:8px 0 9px}
+button{background:#1b3038;color:#ecf8f9;border:0;border-radius:9px;min-height:34px;padding:5px 3px;font:inherit;font-size:13px;cursor:pointer}
+nav button{font-size:12px;border-radius:20px}
+button.active,.primary{background:#27c3a9;color:#062923;font-weight:bold}
+button:active{background:#378179;color:white}
+.stack{display:grid;gap:6px}
+.card strong{display:block;font-size:20px;margin:3px 0 6px}
+.card button,.wide{width:100%}
+.note{color:#aec7cb;margin:7px 0}
+.back{margin-top:8px}
+#view{min-height:305px;display:flex;flex-direction:column;gap:7px}
+#view .stack{gap:9px}
+#view .panel-info{margin-top:auto}
+.panel-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.panel-info>div{background:#14272f;border:1px solid #29434a;border-radius:12px;padding:9px;font-size:12px}
+.panel-info b{display:block;font-size:14px;margin-top:4px}
+.status{color:#aec7cb;font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<main dir="rtl">
+  <header class="hero">
+    <small>پنل اختصاصی خدمات</small>
+    <h1>WEDBAZ</h1>
+    <p>سرویس‌ها، کیف پول و پشتیبانی شما اینجاست.</p>
+    <div class="balance">کیف پول · <b>۰ تومان</b></div>
+  </header>
+  <nav id="tabs"></nav>
+  <section id="view"></section>
+</main>
+<script>
+const tabs = ['خانه', 'خرید', 'سرویس‌ها', 'کیف پول', 'پشتیبانی', 'دعوت', 'هدیه', 'بیشتر'];
+const categories = ['حرفه‌ای (VIP)', 'حرفه‌ای تک کانفیگ', 'اقتصادی'];
+const vip = [[10,80000],[20,160000],[30,210000],[50,328000]];
+const categoryIds = ['vip', 'single', 'economy'];
+const filters = ['همه', 'فعال', 'اتمام حجم', 'منقضی', 'غیرفعال'];
+const num = new Intl.NumberFormat('fa-IR');
+const price = n => num.format(n) + ' تومان';
+const buttons = document.getElementById('tabs');
+const view = document.getElementById('view');
+let trial = null;
+let filter = 0;
+let renewing = false;
+let category = 0;
+let months = 1;
+let plan = vip[0];
+
+function button(label, action, style) {
+  return '<button type="button" data-action="' + action + '" class="' + (style || '') + '">' + label + '</button>';
+}
+function card(content) {
+  return '<div class="card">' + content + '</div>';
+}
+function grid(content) {
+  return '<div class="grid">' + content + '</div>';
+}
+function metric(label, value, link, action) {
+  return card('<small>' + label + '</small><strong>' + value + '</strong>' + button(link, action, 'primary'));
+}
+function back(label, action) {
+  return button(label, action, 'wide back');
+}
+function render(title, content, tab) {
+  buttons.innerHTML = tabs.map((label, i) => button(label, 'tab' + i, tab === i ? 'active' : '')).join('');
+  const overview = '<div class="panel-info"><div>کیف پول<b>۰ تومان</b></div><div>سرویس‌های فعال<b>۰</b></div></div>';
+  view.innerHTML = '<h2>' + title + '</h2>' + content + (tab === 0 ? '' : overview);
+}
+
+function home() {
+  render('نمای کلی', grid(
+    metric('سرویس‌های من', trial === null ? '۰' : '۱', 'مشاهده', 'tab2') +
+    metric('پلن‌های فعال', '۱۲', 'انتخاب پلن', 'tab1') +
+    metric('تیکت‌های اخیر', '۰', 'پیگیری', 'tab4') +
+    metric('دسترسی سریع', 'سرویس', 'تست رایگان', 'trials')
+  ), 0);
+}
+function shop(renew) {
+  renewing = renew;
+  render(renew ? 'تمدید سرویس' : 'خرید سرویس',
+    '<div class="stack">' + categories.map((label, i) => button(label, 'cat' + i)).join('') +
+    (renew ? '' : button('🎁 دریافت تست رایگان', 'trials', 'primary')) + '</div>', 1);
+}
+function plans() {
+  const subtitle = category === 0 ? 'حجم سرویس را انتخاب کنید.' : 'مدت سرویس را انتخاب کنید.';
+  const choices = category === 0
+    ? vip.map((item, i) => button(num.format(item[0]) + ' گیگ · ' + price(item[1]), 'plan' + i))
+    : [1,2].map(n => button(num.format(n) + ' ماهه', 'month' + n));
+  render(categories[category], '<p class="note">' + subtitle + '</p><div class="stack">' + choices.join('') +
+    (renewing ? '' : button('🎁 تست رایگان', 'trial' + category)) + '</div>' + back('بازگشت به دسته‌ها', 'categories'), 1);
+}
+function invoice() {
+  const details = category === 0
+    ? num.format(plan[0]) + ' گیگ · ۳۰ روز<br>مبلغ ' + price(plan[1])
+    : num.format(months) + ' ماهه<br>قیمت و حجم از بات دریافت می‌شوند.';
+  render(renewing ? 'پیش‌فاکتور تمدید' : 'پیش‌فاکتور خرید',
+    card(categories[category] + '<br>' + details) +
+    '<div class="stack back">' + button('ادامه', 'confirm', 'primary') +
+    button('بازگشت به پلن‌ها', 'plans') + '<p id="checkout-status"></p></div>', 1);
+}
+function confirmPlan(control) {
+  const status = document.getElementById('checkout-status');
+  const widget = window.TelegramWidget;
+  if (!widget) {
+    status.textContent = 'این نسخه از تلگرام درخواست ویجت را پشتیبانی نمی‌کند.';
+    return;
+  }
+  if (control.disabled) return;
+  const operation = renewing ? 'renew' : 'buy';
+  const option = category === 0 ? plan[0] : months;
+  const payload = ['checkout', 'v1', operation, categoryIds[category], option].join(':');
+  control.disabled = true;
+  status.textContent = 'در حال ارسال…';
+  widget.request(payload).then(({result}) => {
+    if (result !== 'sent') throw new Error('Checkout failed');
+    control.textContent = 'تأیید شد';
+    status.textContent = 'پیام بات را در چت ببینید.';
+  }).catch(() => {
+    control.disabled = false;
+    status.textContent = 'ارسال تأیید نشد. دوباره امتحان کنید.';
+  });
+}
+function trials() {
+  render('دریافت تست رایگان', '<div class="stack">' +
+    categories.map((label, i) => button('🎁 تست ' + label, 'trial' + i)).join('') + '</div>', 1);
+}
+function trialPage(index) {
+  render('درخواست تست رایگان', card('پلن انتخابی: ' + categories[index] + '<br>حجم پیشنهادی: ۱۰۰ مگابایت') +
+    '<div class="stack back">' + button('تأیید درخواست', 'trialconfirm' + index, 'primary') +
+    back('بازگشت به خرید', 'tab1') + '</div>', 1);
+}
+function services() {
+  const found = trial !== null && filter < 2;
+  render('سرویس‌های من', grid(filters.map((label, i) => button(label, 'filter' + i, filter === i ? 'active' : '')).join('')) +
+    '<div class="back">' + card(found ? 'تست ' + categories[trial] + back('دریافت لینک و QR', 'qr') :
+      filter === 0 ? 'هنوز سرویسی ندارید.' : 'سرویسی با این وضعیت پیدا نشد.') + '</div>', 2);
+}
+function wallet() {
+  render('کیف پول', card('<small>موجودی فعلی</small><strong>۰ تومان</strong>' +
+    button('درخواست شارژ', 'charge', 'primary')), 3);
+}
+function support() {
+  render('پشتیبانی', card('هنوز تیکتی ثبت نشده است.') + back('ثبت تیکت', 'ticket'), 4);
+}
+function invite() {
+  render('دعوت دوستان', card('<small>دعوت ثبت‌شده</small><strong>۰</strong>' +
+    '<small>پاداش هر خرید اول</small><strong>۰ تومان</strong><small>پاداش دریافت‌شده</small><strong>۰ تومان</strong>'), 5);
+}
+function gifts() {
+  render('هدیه‌ها', button('ثبت کد هدیه', 'gift', 'wide primary') +
+    '<div class="back">' + card('هنوز کد هدیه‌ای ثبت نکرده‌اید.') + '</div>', 6);
+}
+function more() {
+  const items = [
+    ['تمدید سرویس','renew'],['تاریخچه','history'],['اپ اندروید ودباز','download'],
+    ['آموزش اتصال','guide'],['افزودن سرویس','add'],['امتیازها و فروشگاه','points'],
+    ['گزارش مشکل','ticket'],['درخواست نمایندگی','partner']
+  ];
+  render('امکانات دیگر', grid(items.map(item => button(item[0], item[1])).join('')), 7);
+}
+const pages = [home, () => shop(false), services, wallet, support, invite, gifts, more];
+const actions = {
+  categories: () => shop(renewing), renew: () => shop(true), plans, trials,
+  qr: () => demo('دریافت لینک و QR', 'qr', 2),
+  guide: () => demo('آموزش اتصال', 'guide', 7),
+  charge: () => demo('شارژ کیف پول', 'charge', 3),
+  ticket: () => demo('ثبت تیکت', 'ticket', 4),
+  gift: () => demo('ثبت کد هدیه', 'gift', 6),
+  history: () => info('تاریخچه', 'تراکنشی در این نمونه ثبت نشده است.', 'tab7', 7),
+  download: () => demo('دانلود برنامه', 'download', 7),
+  add: () => demo('افزودن سرویس', 'add', 7),
+  points: () => demo('امتیازها و فروشگاه', 'points', 7),
+  partner: () => demo('درخواست نمایندگی', 'partner', 7)
+};
+function info(title, message, action, tab) {
+  render(title, card(message) + back('بازگشت', action), tab);
+}
+function demo(title, action, tab) {
+  render(title, card('برای ادامه، درخواست «' + title + '» را تأیید کنید.') +
+    button('تأیید', 'send_' + action, 'primary wide') +
+    '<p class="status" id="request-status"></p>' +
+    back('بازگشت', 'tab' + tab), tab);
+}
+function sendRequest(payload, control) {
+  const status = document.getElementById('request-status');
+  if (control.disabled) return;
+  if (!window.TelegramWidget) {
+    if (status) status.textContent = 'این نسخه از تلگرام درخواست ویجت را پشتیبانی نمی‌کند.';
+    return;
+  }
+  control.disabled = true;
+  if (status) status.textContent = 'در حال ارسال درخواست…';
+  window.TelegramWidget.request(payload).then(({result}) => {
+    if (result !== 'sent') throw Error('Not sent');
+    control.textContent = 'تأیید شد';
+    if (status) status.textContent = 'پیام ربات را در چت ببینید.';
+  }).catch(() => {
+    control.disabled = false;
+    if (status) status.textContent = 'ارسال درخواست تأیید نشد. دوباره تلاش کنید.';
+  });
+}
+function navigate(event) {
+  const action = event.target.dataset.action;
+  if (!action) return;
+  const index = Number(action.slice(-1));
+  if (action === 'confirm') confirmPlan(event.target);
+  else if (action.startsWith('send_')) sendRequest('action:v1:' + action.slice(5), event.target);
+  else if (action.startsWith('trialconfirm')) sendRequest('action:v1:trial' + index, event.target);
+  else if (action.startsWith('tab')) pages[index]();
+  else if (action.startsWith('cat') && action !== 'categories') { category = index; plans(); }
+  else if (action.startsWith('plan') && action !== 'plans') { plan = vip[index]; invoice(); }
+  else if (action.startsWith('month')) { months = index; invoice(); }
+  else if (action.startsWith('trial') && action !== 'trials') trialPage(index);
+  else if (action.startsWith('filter')) { filter = index; services(); }
+  else if (actions[action]) actions[action]();
+}
+buttons.addEventListener('click', navigate);
+view.addEventListener('click', navigate);
+home();
+</script>
+</body>
+</html>
