@@ -134,6 +134,22 @@ async function botUpdate(request, env, db, ctx) {
     fail(403, fa.denied);
   }
   const update = await body(request);
+  if (update.inline_query?.id) {
+    const q = update.inline_query;
+    const keyword = (q.query || '').trim().slice(0,120);
+    const result = {
+      type:'article',id:'inline-greeting-v1',title:'ارسال کارت آزمایشی',
+      description:'یک پیام آزمایشی در همین گفت‌وگو ارسال کن',
+      input_message_content:{
+        message_text: keyword ? 'کارت آزمایشی ربات\\n' + keyword :
+          'سلام! این پیام از طریق Inline Mode ربات Connection Plans ارسال شده است.'
+      }
+    };
+    await botApi(env.TELEGRAM_BOT_TOKEN,'answerInlineQuery',{
+      inline_query_id:q.id,results:[result],cache_time:0,is_personal:true
+    });
+    return json({ok:true});
+  }
   const message = update.message;
   if (!message || message.chat?.type !== 'private' || !Number.isSafeInteger(message.from?.id)
       || message.from?.is_bot || typeof message.text !== 'string') return json({ok:true});
@@ -347,7 +363,7 @@ async function teacher(action, roundId, request, db, env) {
       config = await db.prepare('SELECT webhook_secret FROM bot_config WHERE id=1').first();
     }
     await botApi(env.TELEGRAM_BOT_TOKEN,'setWebhook',{
-      url:target, secret_token:config.webhook_secret, allowed_updates:['message'],drop_pending_updates:false
+      url:target, secret_token:config.webhook_secret, allowed_updates:['message','inline_query'],drop_pending_updates:false
     });
     return json({ok:true,webhook:target});
   }
@@ -381,7 +397,22 @@ async function teacher(action, roundId, request, db, env) {
 
 export default {
   async scheduled(controller, env) {
-    await sendPending(env.DB.withSession('first-primary'),env.TELEGRAM_BOT_TOKEN);
+    const db = env.DB.withSession('first-primary');
+    await sendPending(db,env.TELEGRAM_BOT_TOKEN);
+    // Preserve the existing webhook and secret; enable inline updates only for this Worker.
+    try {
+      const config = await db.prepare('SELECT webhook_secret FROM bot_config WHERE id=1').first();
+      if (config?.webhook_secret) {
+        const webhook = await botApi(env.TELEGRAM_BOT_TOKEN,'getWebhookInfo',{});
+        if (webhook.url && /\\/api\\/bot\\/update$/.test(webhook.url) &&
+            !webhook.allowed_updates?.includes('inline_query')) {
+          await botApi(env.TELEGRAM_BOT_TOKEN,'setWebhook',{
+            url:webhook.url,secret_token:config.webhook_secret,
+            allowed_updates:['message','inline_query'],drop_pending_updates:false
+          });
+        }
+      }
+    } catch (error) { console.error('Inline webhook setup:', error?.message); }
   },
   async fetch(request, env, ctx) {
     try {
